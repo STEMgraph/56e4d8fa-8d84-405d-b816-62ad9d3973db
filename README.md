@@ -1,51 +1,142 @@
 <!---
 {
-  "depends_on": [],
+  "id": "56e4d8fa-8d84-405d-b816-62ad9d3973db",
+  "depends_on": ["b3531ed1-472f-4448-b60b-c58b9671a0a2"],
   "author": "Stephan Bökelmann",
-  "first_used": "2025-03-17",
-  "keywords": ["learning", "exercises", "education", "practice"]
+  "first_used": "2025-07-03",
+  "keywords": ["C", "struct", "memory layout", "padding", "addressing"]
 }
 --->
 
-# Learning Through Exercises
+# Memory Layout and Addressing of C Structs
+
+> In this exercise you will learn how to analyze the memory layout of a `struct` in C, determine its total size including padding, and compute the addresses of its members. Furthermore we will explore how alignment constraints affect field placement and how pointer arithmetic works on struct pointers.
 
 ## Introduction
-Learning by doing is one of the most effective methods to acquire new knowledge and skills. Rather than passively consuming information, actively engaging in problem-solving fosters deeper understanding and long-term retention. By working through structured exercises, students can grasp complex concepts in a more intuitive and applicable way. This approach is particularly beneficial in technical fields like programming, mathematics, and engineering.
+
+In C, a `struct` groups together variables of potentially different types into a single composite type. Unlike arrays, whose elements must share the same type, structs can include fields such as integers, characters, and arrays. The compiler lays out struct members in memory in the order they appear, but to satisfy alignment requirements each field may be padded. Alignment rules typically mandate that a field of size `N` bytes begins at an address that is a multiple of `N`. For example, a 4‑byte `int` must start at a 4‑byte aligned address.
+
+Consider the definition:
+
+```c
+#include <stdio.h>
+
+typedef struct {
+    int Attribut1;        // 4 bytes, alignment 4
+    char Attribut2[10];   // 10 bytes, alignment 1
+} MyStruct_T;
+```
+
+When instantiated, the compiler will place `Attribut1` at offset 0. Next, it places `Attribut2` immediately after, at offset 4, since `char[10]` has alignment 1. After the final member, additional padding may be added to ensure that the `struct`’s size is a multiple of its strictest member alignment (in this case 4). Thus, the total `sizeof(MyStruct_T)` will include both field sizes and any trailing padding.
+
+Understanding this layout is crucial when performing pointer arithmetic on struct pointers or when writing binary data to files or hardware. The address of a member can be computed by taking the base address of the struct and adding the member’s offset, e.g.:
+
+```
+(char*)&new.Attribut2 - (char*)&new       // yields offset of Attribut2
+```
+
+Alternatively, using pointer arithmetic on a struct pointer `p`:
+
+```
+&(p->Attribut2) == (char*)p + offsetof(MyStruct_T, Attribut2)
+```
+
+where `offsetof` is a macro defined in `<stddef.h>`.
 
 ### Further Readings and Other Sources
-- [The Importance of Practice in Learning](https://www.sciencedirect.com/science/article/pii/S036013151300062X)
-- "The Art of Learning" by Josh Waitzkin
-- [How to Learn Effectively: 5 Key Strategies](https://www.edutopia.org/article/5-research-backed-learning-strategies)
+
+1. ISO/IEC 9899:2011 Standard (C11), section on *Structure and Union Members*.
+2. Guy L. Steele Jr. and Gilad Bracha. *C Programming FAQs*, Addison-Wesley, 2005.
+3. cppreference.com, "`offsetof` macro": [https://en.cppreference.com/w/c/types/offsetof](https://en.cppreference.com/w/c/types/offsetof)
+4. YouTube, "C Struct Padding Explained": [https://www.youtube.com/watch?v=4JCF7ZP8D80](https://www.youtube.com/watch?v=4JCF7ZP8D80)
 
 ## Tasks
-1. **Write a Summary**: Summarize the concept of "learning by doing" in 3-5 sentences.
-2. **Example Identification**: List three examples from your own experience where learning through exercises helped you understand a topic better.
-3. **Create an Exercise**: Design a simple exercise for a topic of your choice that someone else could use to practice.
-4. **Follow an Exercise**: Find an online tutorial that includes exercises and complete at least two of them.
-5. **Modify an Existing Exercise**: Take a basic problem from a textbook or online course and modify it to make it slightly more challenging.
-6. **Pair Learning**: Explain a concept to a partner and guide them through an exercise without giving direct answers.
-7. **Review Mistakes**: Look at an exercise you've previously completed incorrectly. Identify why the mistake happened and how to prevent it in the future.
-8. **Time Challenge**: Set a timer for 10 minutes and try to solve as many simple exercises as possible on a given topic.
-9. **Self-Assessment**: Create a checklist to evaluate your own performance in completing exercises effectively.
-10. **Reflect on Progress**: Write a short paragraph on how this structured approach to exercises has influenced your learning.
 
-<details>
-  <summary>Tip for Task 5</summary>
-  Try making small adjustments first, such as increasing the difficulty slightly or adding an extra constraint.
-</details>
+### Task 1: Compute Offsets and Total Size
+
+**Problem:** Given the code below and assuming a base address of `0x1000` for the instance `new`, with standard 4‑byte alignment for `int`:
+
+```c
+#include <stddef.h>
+
+typedef struct {
+    int Attribut1;
+    char Attribut2[10];
+} MyStruct_T;
+
+int main() {
+    MyStruct_T new = {
+        .Attribut1 = 10,
+        .Attribut2 = "Inhalt!"
+    };
+    // assume &new == (MyStruct_T*)0x1000
+}
+```
+
+**Solution Steps:**
+
+1. **Field sizes and alignments**:
+
+   * `int Attribut1`: size = 4, alignment = 4
+   * `char Attribut2[10]`: size = 10, alignment = 1
+2. **Offset of `Attribut1`**:
+
+   * Placed at offset 0 → spans 0x1000–0x1003
+3. **Offset of `Attribut2`**:
+
+   * Next available offset = 4 (no padding needed for `char[10]`)
+   * Spans bytes 0x1004–0x100D
+4. **Trailing padding**:
+
+   * Struct alignment = max field alignment = 4
+   * Current total before padding = 4 + 10 = 14
+   * Add padding to reach multiple of 4: 14 % 4 = 2 → padding = 2 bytes
+   * Final `sizeof(MyStruct_T)` = 16
+5. **Memory layout diagram**:
+
+```mermaid
+graph TB
+  subgraph new [MyStruct_T new @ 0x1000]
+    direction TB
+    A1["Attribut1\n0x1000–0x1003"]
+    A2["Attribut2[0]\n0x1004"]
+    A2b["...\n0x1005–0x100D"]
+    PAD["padding\n0x100E–0x100F"]
+  end
+```
+
+6. **Addresses of members**:
+
+   * `&new.Attribut1 == (int*)0x1000`
+   * `&new.Attribut2 == (char*)0x1004`
+
+---
+
+### Task 2: Pointer Arithmetic on Struct Pointers
+
+**Problem:** Using a pointer `MyStruct_T *p = &new;`, compute the following addresses:
+
+1. `p + 1`
+2. `&(p->Attribut2[3])`
+
+**Solution Steps:**
+
+1. **`p + 1`** advances by `sizeof(MyStruct_T)` = 16 bytes:
+
+   * `(MyStruct_T*)0x1000 + 1 == (MyStruct_T*)0x1010`
+2. **`&(p->Attribut2[3])`**:
+
+   * Base `p` as `char*` = 0x1000
+   * Offset to `Attribut2` = 4 → address of element 0 = 0x1004
+   * Additional offset = 3 bytes → 0x1004 + 3 = 0x1007
+   * Final address = `(char*)p + 7 == (char*)0x1007`
 
 ## Questions
-1. What are the main benefits of learning through exercises compared to passive learning?
-2. How do exercises improve long-term retention?
-3. Can you think of a subject where learning through exercises might be less effective? Why?
-4. What role does feedback play in learning through exercises?
-5. How can self-designed exercises improve understanding?
-6. Why is it beneficial to review past mistakes in exercises?
-7. How does explaining a concept to someone else reinforce your own understanding?
-8. What strategies can you use to stay motivated when practicing with exercises?
-9. How can timed challenges contribute to learning efficiency?
-10. How do exercises help bridge the gap between theory and practical application?
+
+1. Calculate the offset of a hypothetical `short x;` added after `Attribut2`, given `sizeof(short)=2`. What would be `sizeof` including padding?
+2. Why is trailing padding necessary in struct layouts?
+3. How would the layout change if `Attribut2` were declared before `Attribut1`?
 
 ## Advice
-Practice consistently and seek out diverse exercises that challenge different aspects of a topic. Combine exercises with reflection and feedback to maximize your learning efficiency. Don't hesitate to adapt exercises to fit your own needs and ensure that you're actively engaging with the material, rather than just going through the motions.
 
+Structs provide a powerful way to model complex data, but padding and alignment can introduce surprises when reading or writing raw memory. Always use `offsetof` when computing member positions, and rely on `sizeof` rather than manual sums when allocating or advancing pointers. To deepen your understanding, revisit these layouts with different field orders and types, and explore the [Bitfields and Packing]() sheet for finer control over memory usage.
