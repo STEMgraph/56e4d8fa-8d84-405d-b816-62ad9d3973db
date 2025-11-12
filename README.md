@@ -1,6 +1,7 @@
 <!---
 {
   "id": "56e4d8fa-8d84-405d-b816-62ad9d3973db",
+  "teaches": "Memory Layout and Addressing of C Structs",
   "depends_on": ["b3531ed1-472f-4448-b60b-c58b9671a0a2"],
   "author": "Stephan Bökelmann",
   "first_used": "2025-07-03",
